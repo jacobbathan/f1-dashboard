@@ -5,10 +5,13 @@ from backend.app.domain.models import DriverStint, NormalizedLap
 from backend.app.services.normalization import filter_driver_laps
 
 
+def filter_timed_laps(laps: List[NormalizedLap]) -> List[NormalizedLap]:
+    """Drop laps that do not have a usable lap time before analytics."""
+    return [lap for lap in laps if lap.lap_time_seconds is not None]
+
+
 def average_lap_time_seconds(laps: List[NormalizedLap]) -> Optional[float]:
-    lap_times = [
-        lap.lap_time_seconds for lap in laps if lap.lap_time_seconds is not None
-    ]
+    lap_times = [lap.lap_time_seconds for lap in filter_timed_laps(laps)]
     if not lap_times:
         return None
 
