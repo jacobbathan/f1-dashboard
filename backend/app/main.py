@@ -1,7 +1,9 @@
 from fastapi import FastAPI
+from backend.app.api.routes_races import router as races_router
 from backend.app.services.ingestion import load_session, get_raw_laps
 
 app = FastAPI()
+app.include_router(races_router)
 
 
 @app.get("/health")

@@ -1,0 +1,58 @@
+from fastapi import APIRouter, HTTPException, Query
+
+from backend.app.config import SUPPORTED_RACES
+from backend.app.schemas.laps import LapsResponse
+from backend.app.services.ingestion import get_raw_laps, load_session
+from backend.app.services.normalization import filter_driver_laps, normalize_laps
+
+router = APIRouter()
+
+
+@router.get("/race/{race_id}/laps", response_model=LapsResponse)
+def get_race_laps(
+    race_id: str,
+    driver: str = Query(..., description="Three-letter driver code, for example VER"),
+) -> LapsResponse:
+    if race_id not in SUPPORTED_RACES:
+        raise HTTPException(status_code=404, detail=f"Unsupported race_id: {race_id}")
+
+    driver_code = driver.strip().upper()
+    if not driver_code:
+        raise HTTPException(status_code=400, detail="Query parameter 'driver' is required")
+
+    try:
+        session = load_session(race_id)
+        raw_laps = get_raw_laps(session)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to load session data for race_id '{race_id}'",
+        ) from exc
+
+    normalized_laps = normalize_laps(raw_laps, race_id)
+    driver_laps = filter_driver_laps(normalized_laps, driver_code)
+
+    if not driver_laps:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No laps found for driver '{driver_code}' in race '{race_id}'",
+        )
+
+    return LapsResponse(
+        race_id=race_id,
+        driver_code=driver_code,
+        laps=[
+            {
+                "driver_code": lap.driver_code,
+                "lap_number": lap.lap_number,
+                "lap_time_seconds": lap.lap_time_seconds,
+                "tyre_compound": lap.tyre_compound,
+                "tyre_life_laps": lap.tyre_life_laps,
+                "stint_number": lap.stint_number,
+                "position": lap.position,
+            }
+            for lap in driver_laps
+        ],
+    )
