@@ -9,6 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
+# Env
+.env
+
 # F1 Cached races folder
 cache/
 

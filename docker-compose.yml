@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: f1-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: f1dashboard
+    ports:
+      - "5432:5432"
+    volumes:
+      - f1_pgdata:/var/lib/postgresql/data
+
+volumes:
+  f1_pgdata:
