@@ -67,18 +67,20 @@ st.title("F1 Strategy Dashboard")
 
 with st.spinner("Loading session data..."):
     try:
-        races_data = get_backend_json("/races")
-    except requests.RequestException as exc:
-        st.error(f"Failed to fetch available races from backend: {exc}")
-        st.stop()
-
-race_ids = races_data.get("races", [])
-if not race_ids:
-    st.error("No races are available from the backend.")
-    st.stop()
+        races_response = get_backend_json("/races", params={})
+        race_options = {
+            race["race_id"]: race["label"]
+            for race in races_response["races"]
+        }
+    except Exception:
+        race_options = {"2024_monza_race": "Italian Grand Prix"}
 
 st.sidebar.header("Session Controls")
-selected_race_id = st.sidebar.selectbox("Race", options=race_ids)
+selected_race_id = st.sidebar.selectbox(
+    "Race",
+    options=race_options.keys(),
+    format_func=lambda race_id: race_options[race_id],
+)
 driver_code = st.sidebar.text_input(
     "Driver code", value=DEFAULT_DRIVER
 ).strip().upper()

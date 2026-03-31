@@ -34,9 +34,14 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/races")
-def list_races() -> dict[str, list[str]]:
-    """Return the available supported race identifiers."""
-    return {"races": list(SUPPORTED_RACES.keys())}
+def list_races() -> dict[str, list[dict[str, str]]]:
+    """Return the available supported races with display labels."""
+    return {
+        "races": [
+            {"race_id": race_id, "label": race_config["event_name"]}
+            for race_id, race_config in SUPPORTED_RACES.items()
+        ]
+    }
 
 
 def _validate_driver_code(driver: str) -> str:
