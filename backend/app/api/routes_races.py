@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from backend.app.config import SUPPORTED_RACES
 from backend.app.domain.models import DriverStint, NormalizedLap
+from backend.app.schemas.laps import FilterMetadata
 from backend.app.schemas.laps import LapItemResponse, LapsResponse
 from backend.app.schemas.stints import StintItemResponse, StintsResponse
 from backend.app.schemas.strategy import StrategyResponse
@@ -16,9 +17,11 @@ from backend.app.services.cache import set_cached_strategy
 from backend.app.services.ingestion import get_raw_laps, load_session
 from backend.app.services.normalization import (
     filter_driver_laps,
+    LapFilterStats,
     normalize_laps,
 )
 from backend.app.services.persistence import (
+    load_filter_metadata_from_db,
     load_laps_from_db,
     save_session_data,
     session_exists,
@@ -60,22 +63,23 @@ def _load_normalized_laps(race_id: str) -> list[NormalizedLap]:
         )
 
     try:
-        cached_laps = get_cached_laps(race_id)
-        if cached_laps is not None:
+        cached_lap_data = get_cached_laps(race_id)
+        if cached_lap_data is not None:
             logger.info("[%s] using in-memory laps cache", race_id)
-            return cached_laps
+            return cached_lap_data
 
         if session_exists(race_id):
             logger.info("[%s] loading laps from database", race_id)
             db_t0 = time.perf_counter()
             db_laps = load_laps_from_db(race_id)
+            filter_metadata = load_filter_metadata_from_db(race_id)
             logger.info(
                 "[%s] db load: %.3fs",
                 race_id,
                 time.perf_counter() - db_t0,
             )
-            set_cached_laps(race_id, db_laps)
-            return db_laps
+            set_cached_laps(race_id, db_laps, filter_metadata)
+            return db_laps, filter_metadata
 
         logger.info("[%s] cache miss, loading laps from FastF1", race_id)
         race_config = SUPPORTED_RACES[race_id]
@@ -98,7 +102,7 @@ def _load_normalized_laps(race_id: str) -> list[NormalizedLap]:
         )
 
         normalization_t0 = time.perf_counter()
-        normalized_laps = normalize_laps(raw_laps, race_id)
+        normalized_laps, filter_stats = normalize_laps(raw_laps, race_id)
         logger.info(
             "[%s] normalization: %.3fs",
             race_id,
@@ -106,15 +110,20 @@ def _load_normalized_laps(race_id: str) -> list[NormalizedLap]:
         )
 
         persistence_t0 = time.perf_counter()
-        save_session_data(race_id, race_config, normalized_laps)
+        save_session_data(
+            race_id,
+            race_config,
+            normalized_laps,
+            filter_stats,
+        )
         logger.info(
             "[%s] persistence: %.3fs",
             race_id,
             time.perf_counter() - persistence_t0,
         )
 
-        set_cached_laps(race_id, normalized_laps)
-        return normalized_laps
+        set_cached_laps(race_id, normalized_laps, filter_stats)
+        return normalized_laps, filter_stats
     finally:
         logger.info(
             "[%s] ingestion total: %.3fs",
@@ -132,7 +141,7 @@ def _load_driver_stints(
     Raises:
         HTTPException: 404 if the driver has no laps or no stints.
     """
-    normalized_laps = _load_normalized_laps(race_id)
+    normalized_laps, _ = _load_normalized_laps(race_id)
     driver_laps = filter_driver_laps(normalized_laps, driver_code)
 
     if not driver_laps:
@@ -165,6 +174,16 @@ def _load_driver_stints(
     return driver_stints
 
 
+def _build_filter_metadata(
+    filter_stats: LapFilterStats | None,
+) -> FilterMetadata | None:
+    """Convert internal normalization stats to the laps response schema."""
+    if filter_stats is None:
+        return None
+
+    return FilterMetadata.model_validate(filter_stats)
+
+
 @router.get("/race/{race_id}/laps", response_model=LapsResponse)
 def get_race_laps(
     race_id: str,
@@ -177,7 +196,7 @@ def get_race_laps(
     driver_code = _validate_driver_code(driver)
 
     try:
-        normalized_laps = _load_normalized_laps(race_id)
+        normalized_laps, filter_stats = _load_normalized_laps(race_id)
         driver_laps = filter_driver_laps(normalized_laps, driver_code)
 
         if not driver_laps:
@@ -193,6 +212,7 @@ def get_race_laps(
             race_id=race_id,
             driver_code=driver_code,
             laps=[LapItemResponse.model_validate(lap) for lap in driver_laps],
+            metadata=_build_filter_metadata(filter_stats),
         )
     finally:
         logger.info(

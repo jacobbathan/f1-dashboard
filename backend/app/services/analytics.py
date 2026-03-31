@@ -16,6 +16,31 @@ def filter_timed_laps(laps: list[NormalizedLap]) -> list[NormalizedLap]:
     return [lap for lap in laps if lap.lap_time_seconds is not None]
 
 
+def filter_outlier_laps(
+    laps: list[NormalizedLap],
+    threshold: float = 1.5,
+) -> list[NormalizedLap]:
+    """Remove laps significantly slower than the median using IQR filtering."""
+    if len(laps) < 3:
+        return laps
+
+    times = [lap.lap_time_seconds for lap in laps if lap.lap_time_seconds is not None]
+    if not times:
+        return laps
+
+    sorted_times = sorted(times)
+    q1 = sorted_times[len(sorted_times) // 4]
+    q3 = sorted_times[3 * len(sorted_times) // 4]
+    iqr = q3 - q1
+    upper_bound = q3 + threshold * iqr
+    return [
+        lap
+        for lap in laps
+        if lap.lap_time_seconds is not None
+        and lap.lap_time_seconds <= upper_bound
+    ]
+
+
 def average_lap_time_seconds(laps: list[NormalizedLap]) -> float | None:
     """Return the mean lap time in seconds, or None if no timed laps exist."""
     lap_times = [lap.lap_time_seconds for lap in filter_timed_laps(laps)]
@@ -72,6 +97,7 @@ def build_driver_stints(
 
     for stint_number, stint_laps in sorted(stints.items()):
         ordered_laps = sorted(stint_laps, key=lambda lap: lap.lap_number)
+        filtered_stint_laps = filter_outlier_laps(ordered_laps)
         first_lap = ordered_laps[0]
         last_lap = ordered_laps[-1]
 
@@ -84,8 +110,10 @@ def build_driver_stints(
                 start_lap=first_lap.lap_number,
                 end_lap=last_lap.lap_number,
                 stint_length=len(ordered_laps),
-                avg_lap_time_seconds=average_lap_time_seconds(ordered_laps),
-                degradation_slope=stint_lap_time_slope(ordered_laps),
+                avg_lap_time_seconds=average_lap_time_seconds(
+                    filtered_stint_laps
+                ),
+                degradation_slope=stint_lap_time_slope(filtered_stint_laps),
             )
         )
 

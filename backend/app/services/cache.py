@@ -6,10 +6,13 @@ import logging
 
 from backend.app.domain.models import NormalizedLap
 from backend.app.domain.models import StrategyRecommendation
+from backend.app.services.normalization import LapFilterStats
 
 logger = logging.getLogger(__name__)
 
-_session_cache: dict[str, list[NormalizedLap]] = {}
+type CachedLapData = tuple[list[NormalizedLap], LapFilterStats | None]
+
+_session_cache: dict[str, CachedLapData] = {}
 _strategy_cache: dict[str, StrategyRecommendation] = {}
 _cache_counters: dict[str, int] = {
     "laps_hits": 0,
@@ -25,22 +28,26 @@ def _strategy_cache_key(race_id: str, driver_code: str) -> str:
     return f"{race_id}:{normalized_driver_code}"
 
 
-def get_cached_laps(race_id: str) -> list[NormalizedLap] | None:
-    """Return cached laps for a race, if present."""
-    laps = _session_cache.get(race_id)
-    if laps is None:
+def get_cached_laps(race_id: str) -> CachedLapData | None:
+    """Return cached laps and metadata for a race, if present."""
+    cached_lap_data = _session_cache.get(race_id)
+    if cached_lap_data is None:
         _cache_counters["laps_misses"] += 1
         logger.info("lap cache miss for race_id=%s", race_id)
         return None
 
     _cache_counters["laps_hits"] += 1
     logger.info("lap cache hit for race_id=%s", race_id)
-    return laps
+    return cached_lap_data
 
 
-def set_cached_laps(race_id: str, laps: list[NormalizedLap]) -> None:
-    """Store normalized laps in the in-memory session cache."""
-    _session_cache[race_id] = laps
+def set_cached_laps(
+    race_id: str,
+    laps: list[NormalizedLap],
+    metadata: LapFilterStats | None,
+) -> None:
+    """Store normalized laps and metadata in the in-memory session cache."""
+    _session_cache[race_id] = (laps, metadata)
 
 
 def get_cached_strategy(

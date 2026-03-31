@@ -32,6 +32,22 @@ class SessionRecord(Base):
     )
 
 
+class SessionFilterMetadataRecord(Base):
+    """Persist normalization summary metadata for one session."""
+
+    __tablename__ = "session_filter_metadata"
+
+    session_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("sessions.id"),
+        primary_key=True,
+    )
+    total_raw_rows: Mapped[int] = mapped_column(Integer, nullable=False)
+    filtered_no_time: Mapped[int] = mapped_column(Integer, nullable=False)
+    filtered_pit_laps: Mapped[int] = mapped_column(Integer, nullable=False)
+    valid_laps_returned: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
 class LapRecord(Base):
     """Persist normalized lap-level data for a session."""
 

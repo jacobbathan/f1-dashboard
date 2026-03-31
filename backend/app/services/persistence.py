@@ -7,14 +7,17 @@ from sqlalchemy import select
 from backend.app.config import RaceConfig
 from backend.app.db.engine import SessionLocal
 from backend.app.db.tables import LapRecord
+from backend.app.db.tables import SessionFilterMetadataRecord
 from backend.app.db.tables import SessionRecord
 from backend.app.domain.models import NormalizedLap
+from backend.app.services.normalization import LapFilterStats
 
 
 def save_session_data(
     race_id: str,
     race_config: RaceConfig,
     laps: list[NormalizedLap],
+    filter_stats: LapFilterStats | None = None,
 ) -> None:
     """Persist one session and its normalized lap records.
 
@@ -23,6 +26,7 @@ def save_session_data(
         race_config: Supported-race config with season, event_name,
             and session_name fields.
         laps: Normalized lap rows to persist.
+        filter_stats: Optional normalization summary metadata to persist.
     """
     with SessionLocal() as session:
         session.add(
@@ -34,6 +38,16 @@ def save_session_data(
             )
         )
         session.flush()
+        if filter_stats is not None:
+            session.add(
+                SessionFilterMetadataRecord(
+                    session_id=race_id,
+                    total_raw_rows=filter_stats.total_raw_rows,
+                    filtered_no_time=filter_stats.filtered_no_time,
+                    filtered_pit_laps=filter_stats.filtered_pit_laps,
+                    valid_laps_returned=filter_stats.valid_laps_returned,
+                )
+            )
         session.add_all(
             [
                 LapRecord(
@@ -89,3 +103,21 @@ def load_laps_from_db(race_id: str) -> list[NormalizedLap]:
         )
         for row in rows
     ]
+
+
+def load_filter_metadata_from_db(
+    race_id: str,
+) -> LapFilterStats | None:
+    """Load persisted normalization metadata for one session, if present."""
+    with SessionLocal() as session:
+        row = session.get(SessionFilterMetadataRecord, race_id)
+
+    if row is None:
+        return None
+
+    return LapFilterStats(
+        total_raw_rows=row.total_raw_rows,
+        filtered_no_time=row.filtered_no_time,
+        filtered_pit_laps=row.filtered_pit_laps,
+        valid_laps_returned=row.valid_laps_returned,
+    )

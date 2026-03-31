@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import logging
 
 import pandas as pd
@@ -5,6 +6,16 @@ import pandas as pd
 from backend.app.domain.models import NormalizedLap
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class LapFilterStats:
+    """Summary of lap rows kept and filtered during normalization."""
+
+    total_raw_rows: int
+    filtered_no_time: int
+    filtered_pit_laps: int
+    valid_laps_returned: int
 
 
 def timedelta_to_seconds(value: object) -> float | None:
@@ -53,14 +64,12 @@ def safe_str(value: object) -> str | None:
 def normalize_laps(
     raw_laps_df: pd.DataFrame,
     race_id: str,
-) -> list[NormalizedLap]:
+) -> tuple[list[NormalizedLap], LapFilterStats]:
     """Map raw FastF1 laps dataframe into stable internal lap models."""
     normalized_laps: list[NormalizedLap] = []
     total_rows = len(raw_laps_df)
-    filtered_counts = {
-        "no_time": 0,
-        "pit_lap": 0,
-    }
+    filtered_no_time = 0
+    filtered_pit_laps = 0
 
     for _, row in raw_laps_df.iterrows():
         driver_code = safe_str(row.get("Driver"))
@@ -71,16 +80,16 @@ def normalize_laps(
         if driver_code is None or lap_number is None:
             continue
         if lap_time_seconds is None:
-            filtered_counts["no_time"] += 1
+            filtered_no_time += 1
             continue
 
         pit_in_time = row.get("PitInTime")
         pit_out_time = row.get("PitOutTime")
         if pit_in_time is not None and not pd.isna(pit_in_time):
-            filtered_counts["pit_lap"] += 1
+            filtered_pit_laps += 1
             continue
         if pit_out_time is not None and not pd.isna(pit_out_time):
-            filtered_counts["pit_lap"] += 1
+            filtered_pit_laps += 1
             continue
         # SAFETY CAR HANDLING
         # FastF1's TrackStatus column can indicate safety car periods, but its
@@ -100,13 +109,21 @@ def normalize_laps(
         )
         normalized_laps.append(lap)
 
-    logger.info(
-        "Normalized %s laps, filtered %s from %s raw rows",
-        len(normalized_laps),
-        filtered_counts,
-        total_rows,
+    filter_stats = LapFilterStats(
+        total_raw_rows=total_rows,
+        filtered_no_time=filtered_no_time,
+        filtered_pit_laps=filtered_pit_laps,
+        valid_laps_returned=len(normalized_laps),
     )
-    return normalized_laps
+    logger.info(
+        "Normalized %s laps, filtered {'no_time': %s, 'pit_lap': %s}"
+        " from %s raw rows",
+        filter_stats.valid_laps_returned,
+        filter_stats.filtered_no_time,
+        filter_stats.filtered_pit_laps,
+        filter_stats.total_raw_rows,
+    )
+    return normalized_laps, filter_stats
 
 
 def filter_driver_laps(
