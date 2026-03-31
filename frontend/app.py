@@ -1,3 +1,5 @@
+import html
+
 import pandas as pd
 import requests
 import streamlit as st
@@ -12,14 +14,39 @@ st.markdown(
         background: #1a1a2e;
         border: 1px solid #333;
         border-radius: 8px;
-        padding: 1rem;
+        min-height: 7rem;
+        padding: 0.85rem;
     }
     div[data-testid="stMetricLabel"] p {
         color: #aaa;
+        white-space: normal;
     }
     div[data-testid="stMetricValue"] {
         color: #fff;
         font-family: "JetBrains Mono", monospace;
+        font-size: 1.15rem;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+        white-space: normal;
+    }
+    .text-card {
+        background: #1a1a2e;
+        border: 1px solid #333;
+        border-radius: 8px;
+        min-height: 7rem;
+        padding: 0.85rem;
+    }
+    .text-card__label {
+        color: #aaa;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+    .text-card__value {
+        color: #fff;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 1rem;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
     }
     </style>
     """,
@@ -61,6 +88,89 @@ def format_optional_text(value: object | None) -> str:
     if value is None or pd.isna(value):
         return "N/A"
     return str(value)
+
+
+def render_text_card(label: str, value: str) -> None:
+    """Render a wrapped text card for longer non-metric values."""
+    safe_label = html.escape(label)
+    safe_value = html.escape(value)
+    st.markdown(
+        f"""
+        <div class="text-card">
+            <div class="text-card__label">{safe_label}</div>
+            <div class="text-card__value">{safe_value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def build_lap_chart_spec(
+    laps_df: pd.DataFrame,
+    stints_df: pd.DataFrame,
+) -> dict:
+    """Build a lap-time chart with stint-start markers."""
+    stint_markers = (
+        stints_df[["start_lap"]]
+        .dropna()
+        .drop_duplicates()
+        .rename(columns={"start_lap": "lap_number"})
+        .sort_values("lap_number")
+    )
+    return {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "height": 360,
+        "data": {"values": laps_df.to_dict("records")},
+        "layer": [
+            {
+                "mark": {
+                    "type": "line",
+                    "color": "#ff5c5c",
+                    "strokeWidth": 3,
+                    "point": False,
+                },
+                "encoding": {
+                    "x": {
+                        "field": "lap_number",
+                        "type": "quantitative",
+                        "title": "Lap",
+                    },
+                    "y": {
+                        "field": "lap_time_seconds",
+                        "type": "quantitative",
+                        "title": "Lap Time (s)",
+                    },
+                    "tooltip": [
+                        {"field": "lap_number", "title": "Lap"},
+                        {
+                            "field": "lap_time_seconds",
+                            "title": "Lap Time (s)",
+                            "format": ".3f",
+                        },
+                        {
+                            "field": "tyre_compound",
+                            "title": "Compound",
+                        },
+                    ],
+                },
+            },
+            {
+                "data": {"values": stint_markers.to_dict("records")},
+                "mark": {
+                    "type": "rule",
+                    "color": "#ffd166",
+                    "strokeDash": [6, 4],
+                    "strokeWidth": 2,
+                },
+                "encoding": {
+                    "x": {
+                        "field": "lap_number",
+                        "type": "quantitative",
+                    }
+                },
+            },
+        ],
+    }
 
 
 st.title("F1 Strategy Dashboard")
@@ -174,19 +284,19 @@ if strategy_data is not None:
     else:
         pit_window_text = "None"
 
-kpi_best_lap, kpi_avg_lap, kpi_total_laps, kpi_compound, kpi_deg, kpi_pit = (
-    st.columns(6)
-)
-kpi_best_lap.metric("Best Lap", format_optional_float(best_lap, 3, "s"))
-kpi_avg_lap.metric("Avg Lap", format_optional_float(avg_lap, 3, "s"))
-kpi_total_laps.metric("Total Laps", str(total_laps))
-kpi_compound.metric(
+kpi_top_left, kpi_top_mid, kpi_top_right = st.columns(3)
+kpi_top_left.metric("Best Lap", format_optional_float(best_lap, 3, "s"))
+kpi_top_mid.metric("Avg Lap", format_optional_float(avg_lap, 3, "s"))
+kpi_top_right.metric("Total Laps", str(total_laps))
+
+kpi_bottom_left, kpi_bottom_mid, kpi_bottom_right = st.columns(3)
+kpi_bottom_left.metric(
     "Current Compound",
     format_optional_text(
         None if latest_stint_data is None else latest_stint_data["tyre_compound"]
     ),
 )
-kpi_deg.metric(
+kpi_bottom_mid.metric(
     "Deg Rate",
     format_optional_float(
         (
@@ -197,14 +307,17 @@ kpi_deg.metric(
         4,
     ),
 )
-kpi_pit.metric("Pit Window", pit_window_text)
+kpi_bottom_right.metric("Pit Window", pit_window_text)
 
 st.divider()
 st.header("Lap Analysis")
 if laps_df.empty:
     st.warning("No lap data returned.")
 else:
-    st.line_chart(laps_df, x="lap_number", y="lap_time_seconds")
+    st.vega_lite_chart(
+        build_lap_chart_spec(laps_df, stints_df),
+        use_container_width=True,
+    )
     with st.expander("Lap Data Table"):
         st.dataframe(
             laps_df,
@@ -282,18 +395,13 @@ elif strategy_data is not None:
     )
 
     if has_recommendation:
-        pit_window_col, urgency_col, pace_col, slope_col = st.columns(4)
+        pit_window_col, urgency_col, pace_col = st.columns([1.6, 1, 1])
         pit_window_col.metric("Recommended pit window", pit_window_text)
         urgency_col.metric("Urgency", urgency_text)
         pace_col.metric("Avg stint pace", avg_pace_text)
-        slope_col.metric("Degradation slope", slope_text)
 
-        (
-            confidence_col,
-            projected_delta_col,
-            baseline_strategy_col,
-            baseline_delta_col,
-        ) = st.columns(4)
+        slope_col, confidence_col, projected_delta_col = st.columns(3)
+        slope_col.metric("Degradation slope", slope_text)
         confidence_col.metric("Confidence", confidence_text)
         projected_delta_col.metric(
             "Projected lap delta",
@@ -301,10 +409,13 @@ elif strategy_data is not None:
                 strategy_data["projected_lap_delta_seconds"], 3, "s"
             ),
         )
-        baseline_strategy_col.metric(
-            "Baseline strategy",
-            format_optional_text(strategy_data["baseline_strategy"]),
-        )
+
+        baseline_strategy_col, baseline_delta_col = st.columns([1.6, 1])
+        with baseline_strategy_col:
+            render_text_card(
+                "Baseline strategy",
+                format_optional_text(strategy_data["baseline_strategy"]),
+            )
         baseline_delta_col.metric(
             "Baseline delta",
             format_optional_float(
@@ -313,9 +424,11 @@ elif strategy_data is not None:
         )
     else:
         st.info(explanation_text)
-        urgency_col, confidence_col, pace_col, slope_col = st.columns(4)
+        urgency_col, confidence_col = st.columns(2)
         urgency_col.metric("Urgency", urgency_text)
         confidence_col.metric("Confidence", confidence_text)
+
+        pace_col, slope_col = st.columns(2)
         pace_col.metric("Avg stint pace", avg_pace_text)
         slope_col.metric("Degradation slope", slope_text)
 
