@@ -11,7 +11,7 @@ class StintItemResponse(BaseModel):
     end_lap: int
     stint_length: int
     avg_lap_time_seconds: Optional[float] = None
-    degredation_slope: Optional[float] = None
+    degradation_slope: Optional[float] = None
 
 
 class StintsResponse(BaseModel):

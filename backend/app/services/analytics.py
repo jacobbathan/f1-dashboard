@@ -8,6 +8,8 @@ from backend.app.services.normalization import filter_driver_laps
 
 
 def filter_timed_laps(laps: List[NormalizedLap]) -> List[NormalizedLap]:
+    # Normalization already drops laps without timings, but analytics keeps this
+    # guard so direct callers or future pipeline changes do not break slope/pace math.
     """Drop laps that do not have a usable lap time before analytics."""
     return [lap for lap in laps if lap.lap_time_seconds is not None]
 
@@ -59,7 +61,7 @@ def build_driver_stints(
                 end_lap=last_lap.lap_number,
                 stint_length=len(ordered_laps),
                 avg_lap_time_seconds=average_lap_time_seconds(ordered_laps),
-                degredation_slope=stint_lap_time_slope(ordered_laps),
+                degradation_slope=stint_lap_time_slope(ordered_laps),
             )
         )
 

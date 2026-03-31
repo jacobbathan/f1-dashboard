@@ -11,7 +11,7 @@ def estimate_pit_window(
 
     latest_stint = max(stints, key=lambda stint: stint.end_lap)
     current_lap = latest_stint.end_lap
-    slope = latest_stint.degredation_slope
+    slope = latest_stint.degradation_slope
 
     if latest_stint.stint_length < 4 or slope is None:
         return StrategyRecommendation(

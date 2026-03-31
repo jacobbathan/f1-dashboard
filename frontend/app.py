@@ -87,7 +87,7 @@ else:
                     "end_lap",
                     "stint_length",
                     "avg_lap_time_seconds",
-                    "degredation_slope",
+                    "degradation_slope",
                 ]
             ],
             use_container_width=True,

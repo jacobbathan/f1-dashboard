@@ -24,7 +24,7 @@ class DriverStint:
     end_lap: int
     stint_length: int
     avg_lap_time_seconds: Optional[float]
-    degredation_slope: Optional[float]
+    degradation_slope: Optional[float]
 
 
 @dataclass

@@ -8,6 +8,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from backend.app.services.ingestion import load_session, get_raw_laps
 from backend.app.services.normalization import normalize_laps, filter_driver_laps
 
+# Dev-only script for manually checking normalization against a known race session.
 RACE_ID = "2024_monza_race"
 DRIVER = "VER"
 

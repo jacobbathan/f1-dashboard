@@ -107,7 +107,7 @@ def get_race_stints(
                 "end_lap": stint.end_lap,
                 "stint_length": stint.stint_length,
                 "avg_lap_time_seconds": stint.avg_lap_time_seconds,
-                "degredation_slope": stint.degredation_slope,
+                "degradation_slope": stint.degradation_slope,
             }
             for stint in driver_stints
         ],
