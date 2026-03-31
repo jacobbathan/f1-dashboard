@@ -10,8 +10,10 @@ class StrategyResponse(BaseModel):
 
     race_id: str
     driver_code: str
-    recommended_pit_window_start: int
-    recommended_pit_window_end: int
+    recommended_pit_window_start: Optional[int] = None
+    recommended_pit_window_end: Optional[int] = None
+    stint_number: Optional[int] = None
+    race_max_lap: Optional[int] = None
     current_stint_avg_pace: float | None = None
     degradation_slope: float | None = None
     urgency: str

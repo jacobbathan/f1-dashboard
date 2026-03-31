@@ -37,12 +37,14 @@ class StrategyRecommendation:
 
     race_id: str
     driver_code: str
-    recommended_pit_window_start: int
-    recommended_pit_window_end: int
     current_stint_avg_pace: float | None
     degradation_slope: float | None
     urgency: str
     explanation: str
+    recommended_pit_window_start: Optional[int] = None
+    recommended_pit_window_end: Optional[int] = None
+    stint_number: Optional[int] = None
+    race_max_lap: Optional[int] = None
     degradation_slope_used: Optional[float] = None
     threshold_used: Optional[float] = None
     projected_lap_delta_seconds: Optional[float] = None

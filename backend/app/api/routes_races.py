@@ -1,5 +1,6 @@
 import logging
 import time
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -268,6 +269,12 @@ def get_race_strategy(
     driver: str = Query(
         ..., description="Three-letter driver code, for example VER"
     ),
+    stint_number: Optional[int] = Query(
+        None,
+        description=(
+            "Stint number to analyze. Defaults to latest meaningful stint."
+        ),
+    ),
 ) -> StrategyResponse:
     """Return a pit window recommendation for one driver."""
     total_t0 = time.perf_counter()
@@ -281,29 +288,43 @@ def get_race_strategy(
                 detail="Strategy is only available for race sessions.",
             )
 
-        cached_recommendation = get_cached_strategy(race_id, driver_code)
-        if cached_recommendation is not None:
-            logger.info(
-                "[%s][%s] using cached strategy recommendation",
-                race_id,
-                driver_code,
-            )
-            recommendation = cached_recommendation
-        else:
+        recommendation = None
+        if stint_number is None:
+            cached_recommendation = get_cached_strategy(race_id, driver_code)
+            if cached_recommendation is not None:
+                logger.info(
+                    "[%s][%s] using cached strategy recommendation",
+                    race_id,
+                    driver_code,
+                )
+                recommendation = cached_recommendation
+
+        if recommendation is None:
             driver_stints = _load_driver_stints(race_id, driver_code)
+            normalized_laps, _ = _load_normalized_laps(race_id)
+            race_max_lap = max(lap.lap_number for lap in normalized_laps)
             strategy_t0 = time.perf_counter()
-            recommendation = estimate_pit_window(
-                driver_stints,
-                race_id,
-                driver_code,
-            )
+            try:
+                recommendation = estimate_pit_window(
+                    driver_stints,
+                    race_id,
+                    driver_code,
+                    race_max_lap=race_max_lap,
+                    stint_number=stint_number,
+                )
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=404,
+                    detail=str(exc),
+                ) from exc
             logger.info(
                 "[%s][%s] strategy compute: %.3fs",
                 race_id,
                 driver_code,
                 time.perf_counter() - strategy_t0,
             )
-            set_cached_strategy(race_id, driver_code, recommendation)
+            if stint_number is None:
+                set_cached_strategy(race_id, driver_code, recommendation)
 
         return StrategyResponse(
             race_id=recommendation.race_id,
@@ -314,6 +335,8 @@ def get_race_strategy(
             recommended_pit_window_end=(
                 recommendation.recommended_pit_window_end
             ),
+            stint_number=recommendation.stint_number,
+            race_max_lap=recommendation.race_max_lap,
             current_stint_avg_pace=recommendation.current_stint_avg_pace,
             degradation_slope=recommendation.degradation_slope,
             urgency=recommendation.urgency,
