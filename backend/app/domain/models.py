@@ -25,3 +25,15 @@ class DriverStint:
     stint_length: int
     avg_lap_time_seconds: Optional[float]
     degredation_slope: Optional[float]
+
+
+@dataclass
+class StrategyRecommendation:
+    race_id: str
+    driver_code: str
+    recommended_pit_window_start: int
+    recommended_pit_window_end: int
+    current_stint_avg_pace: Optional[float]
+    degradation_slope: Optional[float]
+    urgency: str
+    explanation: str

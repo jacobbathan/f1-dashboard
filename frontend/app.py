@@ -26,6 +26,10 @@ try:
         f"/race/{DEFAULT_RACE_ID}/laps",
         params={"driver": driver_code},
     )
+    strategy_data = get_backend_json(
+        f"/race/{DEFAULT_RACE_ID}/strategy",
+        params={"driver": driver_code},
+    )
     stints_data = get_backend_json(
         f"/race/{DEFAULT_RACE_ID}/stints",
         params={"driver": driver_code},
@@ -43,9 +47,48 @@ else:
         st.line_chart(laps_df, x="lap_number", y="lap_time_seconds")
         st.dataframe(laps_df, use_container_width=True)
 
+    st.subheader("Strategy")
+    pit_window = (
+        f"Lap {strategy_data['recommended_pit_window_start']}"
+        f"-{strategy_data['recommended_pit_window_end']}"
+    )
+    pit_window_col, urgency_col, pace_col, slope_col = st.columns(4)
+    pit_window_col.metric("Recommended pit window", pit_window)
+    urgency_col.metric("Urgency", strategy_data["urgency"].upper())
+    pace_col.metric(
+        "Avg stint pace",
+        (
+            f"{strategy_data['current_stint_avg_pace']:.3f}s"
+            if strategy_data["current_stint_avg_pace"] is not None
+            else "N/A"
+        ),
+    )
+    slope_col.metric(
+        "Degradation slope",
+        (
+            f"{strategy_data['degradation_slope']:.3f}"
+            if strategy_data["degradation_slope"] is not None
+            else "N/A"
+        ),
+    )
+    st.caption(strategy_data["explanation"])
+
     st.subheader("Stints")
     if stints_df.empty:
         st.warning("No stint data returned.")
     else:
         st.bar_chart(stints_df, x="stint_number", y="avg_lap_time_seconds")
-        st.dataframe(stints_df, use_container_width=True)
+        st.dataframe(
+            stints_df[
+                [
+                    "stint_number",
+                    "tyre_compound",
+                    "start_lap",
+                    "end_lap",
+                    "stint_length",
+                    "avg_lap_time_seconds",
+                    "degredation_slope",
+                ]
+            ],
+            use_container_width=True,
+        )
