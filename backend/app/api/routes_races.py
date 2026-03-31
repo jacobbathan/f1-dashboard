@@ -32,6 +32,12 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+@router.get("/races")
+def list_races() -> dict[str, list[str]]:
+    """Return the available supported race identifiers."""
+    return {"races": list(SUPPORTED_RACES.keys())}
+
+
 def _validate_driver_code(driver: str) -> str:
     """Normalise and validate the driver query parameter.
 
@@ -47,7 +53,9 @@ def _validate_driver_code(driver: str) -> str:
     return driver_code
 
 
-def _load_normalized_laps(race_id: str) -> list[NormalizedLap]:
+def _load_normalized_laps(
+    race_id: str,
+) -> tuple[list[NormalizedLap], LapFilterStats | None]:
     """Load normalized laps from cache or FastF1 for a supported race.
 
     Raises:
@@ -264,8 +272,15 @@ def get_race_strategy(
     """Return a pit window recommendation for one driver."""
     total_t0 = time.perf_counter()
     driver_code = _validate_driver_code(driver)
+    race_config = SUPPORTED_RACES.get(race_id)
 
     try:
+        if race_config is not None and race_config["session_name"] != "R":
+            raise HTTPException(
+                status_code=400,
+                detail="Strategy is only available for race sessions.",
+            )
+
         cached_recommendation = get_cached_strategy(race_id, driver_code)
         if cached_recommendation is not None:
             logger.info(

@@ -16,5 +16,20 @@ SUPPORTED_RACES: dict[str, RaceConfig] = {
         "season": 2024,
         "event_name": "Italian Grand Prix",
         "session_name": "R",
-    }
+    },
+    "2024_spa_race": {
+        "season": 2024,
+        "event_name": "Belgian Grand Prix",
+        "session_name": "R",
+    },
+    "2024_silverstone_race": {
+        "season": 2024,
+        "event_name": "British Grand Prix",
+        "session_name": "R",
+    },
+    "2024_monaco_race": {
+        "season": 2024,
+        "event_name": "Monaco Grand Prix",
+        "session_name": "R",
+    },
 }
