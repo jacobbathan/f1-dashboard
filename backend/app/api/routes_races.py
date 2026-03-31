@@ -11,6 +11,11 @@ from backend.app.services.normalization import (
     filter_driver_laps,
     normalize_laps,
 )
+from backend.app.services.persistence import (
+    load_laps_from_db,
+    save_session_data,
+    session_exists,
+)
 from backend.app.services.strategy import estimate_pit_window
 
 router = APIRouter()
@@ -32,7 +37,7 @@ def _validate_driver_code(driver: str) -> str:
 
 
 def _load_normalized_laps(race_id: str) -> list[NormalizedLap]:
-    """Fetch, cache, and normalise all laps for a supported race.
+    """Load normalized laps from cache or FastF1 for a supported race.
 
     Raises:
         HTTPException: 404 if race_id is unsupported or data is missing.
@@ -43,6 +48,11 @@ def _load_normalized_laps(race_id: str) -> list[NormalizedLap]:
             status_code=404,
             detail=f"Unsupported race_id: {race_id}",
         )
+
+    if session_exists(race_id):
+        return load_laps_from_db(race_id)
+
+    race_config = SUPPORTED_RACES[race_id]
 
     try:
         session = load_session(race_id)
@@ -55,7 +65,9 @@ def _load_normalized_laps(race_id: str) -> list[NormalizedLap]:
             detail=f"Failed to load session data for race_id '{race_id}'",
         ) from exc
 
-    return normalize_laps(raw_laps, race_id)
+    normalized_laps = normalize_laps(raw_laps, race_id)
+    save_session_data(race_id, race_config, normalized_laps)
+    return normalized_laps
 
 
 def _load_driver_stints(
