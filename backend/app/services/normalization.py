@@ -1,6 +1,10 @@
+import logging
+
 import pandas as pd
 
 from backend.app.domain.models import NormalizedLap
+
+logger = logging.getLogger(__name__)
 
 
 def timedelta_to_seconds(value: object) -> float | None:
@@ -52,6 +56,11 @@ def normalize_laps(
 ) -> list[NormalizedLap]:
     """Map raw FastF1 laps dataframe into stable internal lap models."""
     normalized_laps: list[NormalizedLap] = []
+    total_rows = len(raw_laps_df)
+    filtered_counts = {
+        "no_time": 0,
+        "pit_lap": 0,
+    }
 
     for _, row in raw_laps_df.iterrows():
         driver_code = safe_str(row.get("Driver"))
@@ -62,7 +71,22 @@ def normalize_laps(
         if driver_code is None or lap_number is None:
             continue
         if lap_time_seconds is None:
+            filtered_counts["no_time"] += 1
             continue
+
+        pit_in_time = row.get("PitInTime")
+        pit_out_time = row.get("PitOutTime")
+        if pit_in_time is not None and not pd.isna(pit_in_time):
+            filtered_counts["pit_lap"] += 1
+            continue
+        if pit_out_time is not None and not pd.isna(pit_out_time):
+            filtered_counts["pit_lap"] += 1
+            continue
+        # SAFETY CAR HANDLING
+        # FastF1's TrackStatus column can indicate safety car periods, but its
+        # reliability varies by session. For now we explicitly skip
+        # safety-car-specific filtering. If TrackStatus proves reliable, laps
+        # under safety car (status codes 4, 6, 7) could be excluded here.
 
         lap = NormalizedLap(
             race_id=race_id,
@@ -76,6 +100,12 @@ def normalize_laps(
         )
         normalized_laps.append(lap)
 
+    logger.info(
+        "Normalized %s laps, filtered %s from %s raw rows",
+        len(normalized_laps),
+        filtered_counts,
+        total_rows,
+    )
     return normalized_laps
 
 
