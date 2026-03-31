@@ -1,11 +1,9 @@
-from typing import List, Optional
-
 import pandas as pd
 
 from backend.app.domain.models import NormalizedLap
 
 
-def timedelta_to_seconds(value) -> Optional[float]:
+def timedelta_to_seconds(value: object) -> float | None:
     """Convert pandas/py timedelta-like values to float seconds."""
     if value is None:
         return None
@@ -16,13 +14,13 @@ def timedelta_to_seconds(value) -> Optional[float]:
     if hasattr(value, "total_seconds"):
         try:
             return float(value.total_seconds())
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             return None
 
     return None
 
 
-def safe_int(value) -> Optional[int]:
+def safe_int(value: object) -> int | None:
     """Convert a value to int if present and valid."""
     if value is None:
         return None
@@ -36,7 +34,7 @@ def safe_int(value) -> Optional[int]:
         return None
 
 
-def safe_str(value) -> Optional[str]:
+def safe_str(value: object) -> str | None:
     """Convert a value to string if present and valid."""
     if value is None:
         return None
@@ -48,9 +46,12 @@ def safe_str(value) -> Optional[str]:
     return text if text else None
 
 
-def normalize_laps(raw_laps_df: pd.DataFrame, race_id: str) -> List[NormalizedLap]:
+def normalize_laps(
+    raw_laps_df: pd.DataFrame,
+    race_id: str,
+) -> list[NormalizedLap]:
     """Map raw FastF1 laps dataframe into stable internal lap models."""
-    normalized_laps: List[NormalizedLap] = []
+    normalized_laps: list[NormalizedLap] = []
 
     for _, row in raw_laps_df.iterrows():
         driver_code = safe_str(row.get("Driver"))
@@ -79,8 +80,9 @@ def normalize_laps(raw_laps_df: pd.DataFrame, race_id: str) -> List[NormalizedLa
 
 
 def filter_driver_laps(
-    laps: List[NormalizedLap], driver_code: str
-) -> List[NormalizedLap]:
+    laps: list[NormalizedLap],
+    driver_code: str,
+) -> list[NormalizedLap]:
     """Return laps for a single driver, sorted by lap number."""
     target = driver_code.upper().strip()
 

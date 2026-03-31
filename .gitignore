@@ -11,3 +11,8 @@ wheels/
 
 # F1 Cached races folder
 cache/
+
+CLAUDE.md
+AGENTS.md
+.claude/
+.codex/

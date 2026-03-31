@@ -1,16 +1,18 @@
-import streamlit as st
 import requests
+import streamlit as st
 import pandas as pd
 
 st.title("F1 Dashboard (MVP)")
 
 BACKEND_BASE_URL = "http://127.0.0.1:8000"
 DEFAULT_RACE_ID = "2024_monza_race"
-default_driver = "VER"
+DEFAULT_DRIVER = "VER"
 
 
 def get_backend_json(path: str, params: dict[str, str]) -> dict:
-    response = requests.get(f"{BACKEND_BASE_URL}{path}", params=params, timeout=30)
+    response = requests.get(
+        f"{BACKEND_BASE_URL}{path}", params=params, timeout=30
+    )
     if response.status_code >= 400:
         detail = response.json().get("detail", "Unknown backend error")
         raise requests.HTTPError(detail, response=response)
@@ -18,7 +20,7 @@ def get_backend_json(path: str, params: dict[str, str]) -> dict:
     return response.json()
 
 
-driver_code = st.text_input("Driver code", value=default_driver).strip().upper()
+driver_code = st.text_input("Driver code", value=DEFAULT_DRIVER).strip().upper()
 st.caption(f"Race: {DEFAULT_RACE_ID}")
 
 try:
@@ -68,6 +70,42 @@ else:
         (
             f"{strategy_data['degradation_slope']:.3f}"
             if strategy_data["degradation_slope"] is not None
+            else "N/A"
+        ),
+    )
+    (
+        confidence_col,
+        projected_delta_col,
+        baseline_strategy_col,
+        baseline_delta_col,
+    ) = st.columns(4)
+    confidence_col.metric(
+        "Confidence",
+        (
+            strategy_data["confidence"].upper()
+            if strategy_data["confidence"] is not None
+            else "N/A"
+        ),
+    )
+    projected_delta_col.metric(
+        "Projected lap delta",
+        (
+            f"{strategy_data['projected_lap_delta_seconds']:.3f}s"
+            if strategy_data["projected_lap_delta_seconds"] is not None
+            else "N/A"
+        ),
+    )
+    baseline_strategy_col.write("Baseline strategy")
+    baseline_strategy_col.write(
+        strategy_data["baseline_strategy"]
+        if strategy_data["baseline_strategy"] is not None
+        else "N/A"
+    )
+    baseline_delta_col.metric(
+        "Baseline delta",
+        (
+            f"{strategy_data['baseline_delta_seconds']:.3f}s"
+            if strategy_data["baseline_delta_seconds"] is not None
             else "N/A"
         ),
     )

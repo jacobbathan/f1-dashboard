@@ -1,20 +1,20 @@
-from typing import List, Optional
-
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class StintItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     driver_code: str
     stint_number: int
-    tyre_compound: Optional[str] = None
+    tyre_compound: str | None = None
     start_lap: int
     end_lap: int
     stint_length: int
-    avg_lap_time_seconds: Optional[float] = None
-    degradation_slope: Optional[float] = None
+    avg_lap_time_seconds: float | None = None
+    degradation_slope: float | None = None
 
 
 class StintsResponse(BaseModel):
     race_id: str
     driver_code: str
-    stints: List[StintItemResponse]
+    stints: list[StintItemResponse]
