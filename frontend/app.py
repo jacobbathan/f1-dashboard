@@ -3,6 +3,7 @@ import html
 import pandas as pd
 import requests
 import streamlit as st
+import os
 
 st.set_page_config(page_title="F1 Strategy Dashboard", layout="wide")
 
@@ -53,7 +54,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-BACKEND_BASE_URL = "http://127.0.0.1:8000"
+BACKEND_BASE_URL = os.environ.get("BACKEND_URL", "http://127.0.0.1:8000")
 DEFAULT_DRIVER = "VER"
 
 
@@ -62,9 +63,7 @@ def get_backend_json(
     params: dict[str, str | int] | None = None,
 ) -> dict:
     """Fetch JSON data from the backend API."""
-    response = requests.get(
-        f"{BACKEND_BASE_URL}{path}", params=params, timeout=30
-    )
+    response = requests.get(f"{BACKEND_BASE_URL}{path}", params=params, timeout=30)
     if response.status_code >= 400:
         detail = response.json().get("detail", "Unknown backend error")
         raise requests.HTTPError(detail, response=response)
@@ -179,8 +178,7 @@ with st.spinner("Loading session data..."):
     try:
         races_response = get_backend_json("/races", params={})
         race_options = {
-            race["race_id"]: race["label"]
-            for race in races_response["races"]
+            race["race_id"]: race["label"] for race in races_response["races"]
         }
     except Exception:
         race_options = {"2024_monza_race": "Italian Grand Prix"}
@@ -191,9 +189,7 @@ selected_race_id = st.sidebar.selectbox(
     options=race_options.keys(),
     format_func=lambda race_id: race_options[race_id],
 )
-driver_code = st.sidebar.text_input(
-    "Driver code", value=DEFAULT_DRIVER
-).strip().upper()
+driver_code = st.sidebar.text_input("Driver code", value=DEFAULT_DRIVER).strip().upper()
 
 with st.spinner("Loading session data..."):
     try:
@@ -211,9 +207,7 @@ with st.spinner("Loading session data..."):
 
 strategy_data: dict | None = None
 strategy_error_message: str | None = None
-stint_numbers = [
-    stint["stint_number"] for stint in stints_data.get("stints", [])
-]
+stint_numbers = [stint["stint_number"] for stint in stints_data.get("stints", [])]
 selected_stint: int | None = None
 
 if stint_numbers:
@@ -236,13 +230,9 @@ if stint_numbers:
             if str(exc) == "Strategy is only available for race sessions.":
                 strategy_error_message = str(exc)
             else:
-                strategy_error_message = (
-                    f"Failed to fetch strategy from backend: {exc}"
-                )
+                strategy_error_message = f"Failed to fetch strategy from backend: {exc}"
         except requests.RequestException as exc:
-            strategy_error_message = (
-                f"Failed to fetch strategy from backend: {exc}"
-            )
+            strategy_error_message = f"Failed to fetch strategy from backend: {exc}"
 
 laps_df = pd.DataFrame(laps_data.get("laps", []))
 stints_df = pd.DataFrame(stints_data.get("stints", []))
@@ -390,9 +380,7 @@ elif strategy_data is not None:
         strategy_data["current_stint_avg_pace"], 3, "s"
     )
     slope_text = format_optional_float(strategy_data["degradation_slope"], 3)
-    explanation_text = strategy_data.get(
-        "explanation", "No recommendation available."
-    )
+    explanation_text = strategy_data.get("explanation", "No recommendation available.")
 
     if has_recommendation:
         pit_window_col, urgency_col, pace_col = st.columns([1.6, 1, 1])
@@ -405,9 +393,7 @@ elif strategy_data is not None:
         confidence_col.metric("Confidence", confidence_text)
         projected_delta_col.metric(
             "Projected lap delta",
-            format_optional_float(
-                strategy_data["projected_lap_delta_seconds"], 3, "s"
-            ),
+            format_optional_float(strategy_data["projected_lap_delta_seconds"], 3, "s"),
         )
 
         baseline_strategy_col, baseline_delta_col = st.columns([1.6, 1])
@@ -418,9 +404,7 @@ elif strategy_data is not None:
             )
         baseline_delta_col.metric(
             "Baseline delta",
-            format_optional_float(
-                strategy_data["baseline_delta_seconds"], 3, "s"
-            ),
+            format_optional_float(strategy_data["baseline_delta_seconds"], 3, "s"),
         )
     else:
         st.info(explanation_text)

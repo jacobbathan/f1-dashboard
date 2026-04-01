@@ -2,10 +2,11 @@ from pathlib import Path
 
 import fastf1
 import pandas as pd
+import os
 
 from backend.app.config import SUPPORTED_RACES
 
-CACHE_DIR = Path("cache")
+CACHE_DIR = Path(os.environ.get("FASTF1_CACHE_DIR", "cache"))
 
 
 def enable_cache() -> None:
@@ -14,6 +15,7 @@ def enable_cache() -> None:
     Separated from module-level execution so tests can patch or skip it.
     Should be called once at application startup via the FastAPI lifespan.
     """
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     fastf1.Cache.enable_cache(str(CACHE_DIR))
 
 
