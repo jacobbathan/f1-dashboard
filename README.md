@@ -38,8 +38,13 @@ uv run streamlit run frontend/app.py
 
 ### Deploy on Railway
 
-Railway should deploy this repo as separate Dockerfile-based services, not as a Compose stack.
+Railway can recover the current auto-connected backend service from the repo-root
+config at [railway.toml](/home/antigo/Code/f1-dashboard/railway.toml).
 
+For the cleaner long-term setup, Railway should deploy this repo as separate
+Dockerfile-based services, not as a Compose stack.
+
+- Auto-connected backend config: [railway.toml](/home/antigo/Code/f1-dashboard/railway.toml)
 - Backend config: [railway/backend/railway.toml](/home/antigo/Code/f1-dashboard/railway/backend/railway.toml)
 - Frontend config: [railway/frontend/railway.toml](/home/antigo/Code/f1-dashboard/railway/frontend/railway.toml)
 - Deployment guide: [docs/railway.md](/home/antigo/Code/f1-dashboard/docs/railway.md)

@@ -1,5 +1,17 @@
 # Railway deployment
 
+## Fastest recovery for an auto-connected service
+
+If Railway auto-created a single Python service from the repo root, it may try
+to boot `uvicorn main:app`. This repo now supports that recovery path:
+
+- Root compatibility entrypoint: `main.py`
+- Root Railway config: `/railway.toml`
+
+That root config forces Dockerfile-based backend deploys with
+`Dockerfile.backend` and a `/health` healthcheck, so Railway does not need to
+guess a Python start command.
+
 This project should be deployed to Railway as three services in one project:
 
 - `backend`: FastAPI service built from `Dockerfile.backend`
