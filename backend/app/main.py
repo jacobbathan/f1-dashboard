@@ -13,12 +13,12 @@ from backend.app.services.ingestion import enable_cache
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Run startup tasks before the app begins serving requests."""
+    Base.metadata.create_all(bind=engine)
     enable_cache()
     yield
 
 
 app = FastAPI(lifespan=lifespan)
-Base.metadata.create_all(bind=engine)
 app.include_router(races_router)
 
 
