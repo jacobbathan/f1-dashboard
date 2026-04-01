@@ -11,13 +11,16 @@ It uses the same race/driver examples used across tests:
 Start dependencies/services:
 
 ```bash
-docker compose up -d
-uv run uvicorn backend.app.main:app --reload
+docker compose up --build
 ```
 
-(Optional UI)
+The UI will be available at `http://127.0.0.1:8501` and the API at `http://127.0.0.1:8000`.
+
+If you only want Docker-managed Postgres and prefer running app services locally:
 
 ```bash
+docker compose up -d db
+uv run uvicorn backend.app.main:app --reload
 uv run streamlit run frontend/app.py
 ```
 
@@ -157,4 +160,3 @@ Expected:
 - Stint + slope analytics: `backend/app/services/analytics.py`
 - Normalization and filtering: `backend/app/services/normalization.py`
 - Frontend rendering: `frontend/app.py`
-

@@ -1,12 +1,32 @@
 ## Local development
 
-### Start Postgres with Docker
+### Run the full stack with Docker
 
-Make sure Docker is installed and running, then start the local database:
+Make sure Docker is installed and running, then build and start Postgres, the FastAPI backend, and the Streamlit frontend:
 
 ```bash
-docker compose up -d
+docker compose up --build
 ```
+
+The services will be available at:
+- Frontend: `http://127.0.0.1:8501`
+- Backend API: `http://127.0.0.1:8000`
+
+To stop the stack:
+
+```bash
+docker compose down
+```
+
+### Run services manually
+
+If you only want Docker-managed Postgres for local development:
+
+```bash
+docker compose up -d db
+```
+
+Then start the backend and frontend from your local environment:
 
 ```bash
 uv run uvicorn backend.app.main:app --reload
@@ -16,8 +36,13 @@ uv run uvicorn backend.app.main:app --reload
 uv run streamlit run frontend/app.py
 ```
 
-to run them
-im working on containerizing this eventually.
+### Deploy on Railway
+
+Railway should deploy this repo as separate Dockerfile-based services, not as a Compose stack.
+
+- Backend config: [railway/backend/railway.toml](/home/antigo/Code/f1-dashboard/railway/backend/railway.toml)
+- Frontend config: [railway/frontend/railway.toml](/home/antigo/Code/f1-dashboard/railway/frontend/railway.toml)
+- Deployment guide: [docs/railway.md](/home/antigo/Code/f1-dashboard/docs/railway.md)
 
 ---
 
