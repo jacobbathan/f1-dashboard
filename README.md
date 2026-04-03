@@ -1,16 +1,23 @@
-# F1 Strategy Analyzer
+# F1 Race Analytics System
 
-A full-stack pipeline for analyzing Formula 1 race data, computing per-driver tire degradation, and generating heuristic pit-stop window recommendations — served via a FastAPI backend and visualized in a Streamlit dashboard.
+A backend analytics system for ingesting and processing Formula 1 race telemetry, generating driver performance summaries and recommendation outputs through a FastAPI service with a lightweight Streamlit demo interface.
 
 ---
 
 ## Features
 
-- **Live + historical race data** pulled from [FastF1](https://github.com/theOehrly/Fast-F1) with on-disk caching
-- **Tire degradation modeling** — linear regression (slope in s/lap) per stint, with IQR-based outlier filtering
-- **Pit strategy recommendations** — urgency classification, pit-window start/end, projected lap-time delta, and confidence score
-- **Three-tier data layer** — in-memory cache → Postgres persistence → upstream FastF1 fallback
-- **Interactive dashboard** — KPIs, lap-time charts, stint tables, and recommendation cards
+- **Race-Session Data** pulled from [FastF1](https://github.com/theOehrly/Fast-F1) with local caching
+- **Persistance** and cache-backed reuse of processed sessions
+- **Lightweight UI** for inspection and visualization
+
+---
+
+## Tradeoffs and Limitations
+
+- Recommendation logic is heuristic and explainable rather than simulation-based
+- Benchmarked improvement reflects repeated warm requests
+- Frontend is intentionally lightweight and serves as a demo surface rather than a full product UI
+- Project scope is focused on one analysis workflow rather than broad race modeling
 
 ---
 
@@ -61,6 +68,14 @@ Reuses normalized laps pipeline → filters to one driver → builds stint aggre
 Optionally returns cached recommendation. Otherwise computes from driver stints + race max lap, handling edge cases (missing data, late race, insufficient laps).
 
 ---
+
+## Performance Benchmark
+
+Benchmarked endpoint: `GET /race/{id}/strategy?driver=VER`
+Median repeat-request latency before persistence/caching: **3.49s**
+Median repeat-request latency after persistence/caching: **8.6ms**
+Improvement: **99.75%**
+Note: this benchmark reflects warm repeated requests with persisted/cached state, not guaranteed first-request latency under all conditions
 
 ## Tire Degradation Methodology
 
