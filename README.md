@@ -4,11 +4,18 @@ A backend analytics system for ingesting and processing Formula 1 race telemetry
 
 ---
 
+## Why this project
+
+I built this project to practice backend API design, data normalization, persistence, and caching on top of a real telemetry dataset. The goal was to create a system that could process race-session data into structured analysis outputs and demonstrate measurable performance improvements on repeated requests.
+
+---
+
 ## Features
 
-- **Race-Session Data** pulled from [FastF1](https://github.com/theOehrly/Fast-F1) with local caching
-- **Persistance** and cache-backed reuse of processed sessions
-- **Lightweight UI** for inspection and visualization
+- Race-session ingestion from FastF1 with local caching
+- Data normalization and filtering for lap-by-lap telemetry
+- Strategy recommendation API with persisted session reuse
+- Lightweight demo UI for inspecting outputs and recommendations
 
 ---
 
@@ -71,51 +78,47 @@ Optionally returns cached recommendation. Otherwise computes from driver stints 
 
 ## Performance Benchmark
 
-Benchmarked endpoint: `GET /race/{id}/strategy?driver=VER`
-Median repeat-request latency before persistence/caching: **3.49s**
-Median repeat-request latency after persistence/caching: **8.6ms**
-Improvement: **99.75%**
-Note: this benchmark reflects warm repeated requests with persisted/cached state, not guaranteed first-request latency under all conditions
+- Benchmarked endpoint: `GET /race/{id}/strategy?driver=VER`
+- Median repeat-request latency before persistence/caching: **3.49s**
+- Median repeat-request latency after persistence/caching: **8.6ms**
+- Improvement: **99.75%**
 
-## Tire Degradation Methodology
-
-Degradation is expressed as the **slope of lap time vs. lap number** (seconds/lap). A positive slope = tires getting slower.
-
-1. **Filter** — drop laps with no recorded time; drop pit-in/pit-out transition laps.
-2. **Group** — split remaining laps into stints by `stint_number`.
-3. **Outlier removal** — for stints with ≥ 3 laps, compute IQR quartiles and discard laps above `Q3 + 1.5 × IQR`.
-4. **Regression** — run `np.polyfit(lap_numbers, lap_times, 1)` on the filtered set; the leading coefficient is the degradation slope.
+  _Note: this benchmark reflects warm repeated requests with persisted/cached state, not guaranteed first-request latency under all conditions_
 
 ---
 
-## Strategy Estimation
+## Analysis Method
 
-Calls `estimate_pit_window(stints, race_max_lap, stint_number?)`.
+The system estimates performance trends from lap-by-lap session data using a simple, explainable pipeline:
 
-**Urgency thresholds:**
+1. Filter incomplete or non-representative laps
+2. Group valid laps into session segments
+3. Remove statistical outliers using an IQR-based rule
+4. Fit a linear trend to estimate performance change over time
 
-| Slope (s/lap) | Urgency  | Pit window offset |
-| ------------- | -------- | ----------------- |
-| < 0.02        | `low`    | +4 to +6 laps     |
-| 0.02 – 0.05   | `medium` | +2 to +4 laps     |
-| ≥ 0.05        | `high`   | +1 to +2 laps     |
+This keeps the analysis lightweight, reproducible, and easy to inspect, rather than relying on a more complex simulation model.---
 
-**Confidence:**
+---
 
-- `low` — fewer than `MIN_LAPS_FOR_SLOPE` (4) laps, or slope is `None`
-- `medium` — stint length ≤ 7 laps
-- `high` — stint length > 7 laps
+## Recommendation Logic
 
-**Edge cases:**
+Recommendation outputs are generated from simple threshold-based rules applied to the analyzed session trends.
 
-- Already past race end → urgency `none`
-- Insufficient data → fallback medium window, urgency `unknown`, confidence `low`
-- Window beyond race end → urgency `late_race`
+The system uses:
 
-**Delta outputs:**
+- estimated performance change over time
+- remaining session length
+- available valid data
+- configurable thresholds for urgency and recommendation timing
 
-- _Projected lap delta_: `slope × min(PROJECTION_HORIZON_LAPS, remaining_laps)` (horizon = 4 laps)
-- _Baseline delta_: compares recommended pit start vs. a `pit_at_stint_midpoint` baseline
+Outputs include:
+
+- recommendation window
+- urgency level
+- projected short-term performance delta
+- confidence level based on available evidence
+
+The logic is intentionally heuristic and explainable rather than simulation-based.
 
 ---
 
@@ -209,6 +212,14 @@ f1-strategy-analyzer/
 ├── requirements.txt
 └── README.md
 ```
+
+---
+
+## Testing
+
+- run tests with `pytest`
+- benchmark script/tests included for latency verification
+- core happy-path and validation behaviors covered
 
 ---
 
