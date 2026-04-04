@@ -1,5 +1,7 @@
 # F1 Race Analytics System
 
+[Live demo avaliable](https://f1-dashboard-frontend-production.up.railway.app/)
+
 A backend analytics system for ingesting and processing Formula 1 race telemetry, generating driver performance summaries and recommendation outputs through a FastAPI service with a lightweight Streamlit demo interface.
 
 ---
@@ -96,7 +98,7 @@ The system estimates performance trends from lap-by-lap session data using a sim
 3. Remove statistical outliers using an IQR-based rule
 4. Fit a linear trend to estimate performance change over time
 
-This keeps the analysis lightweight, reproducible, and easy to inspect, rather than relying on a more complex simulation model.---
+This keeps the analysis lightweight, reproducible, and easy to inspect, rather than relying on a more complex simulation model.
 
 ---
 
